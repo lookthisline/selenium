@@ -1,12 +1,15 @@
-import urllib
 import os
 import sys
-from loguru import logger
 import time
+import urllib
+
+import aiohttp
+from loguru import logger
 
 __all__ = (
     "download_url_img",
-    "save_media"
+    "save_media",
+    "save_media_of_async",
 )
 
 
@@ -15,6 +18,19 @@ def download_url_img(img_url, img_address):
     img = response.read()
     with open(img_address, 'wb') as f:
         f.write(img)
+
+
+def _dir_check(dir_path: str):
+    """
+    检查目录是否存在，不存在则创建
+    :param dir_path: 目录路径
+    """
+
+    # 获取save_path的文件夹路径
+    dir_path = os.path.dirname(dir_path)
+    # 如果文件夹不存在则创建
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
 
 
 def _progress(block_num, block_size, total_size):
@@ -34,11 +50,8 @@ def save_media(uri: str, save_path: str):
     :param uri: 网络地址
     :param save_path: 保存路径
     """
-    # 获取save_path的文件夹路径
-    dir_path = os.path.dirname(save_path)
-    # 如果文件夹不存在则创建
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+
+    _dir_check(save_path)
 
     # 判断文件是否存在
     if os.path.exists(save_path):
@@ -60,3 +73,32 @@ def save_media(uri: str, save_path: str):
     print(uri, save_path)
     urllib.request.urlretrieve(uri, save_path, _progress)
     time.sleep(1)
+
+
+async def save_media_of_async(uri: str, save_path: str):
+    """
+    异步保存媒体文件
+    :param uri: 网络地址
+    :param save_path: 保存路径
+    """
+
+    _dir_check(save_path)
+
+    # 判断文件是否存在
+    if os.path.exists(save_path):
+        print("文件已存在")
+        return
+
+    async with aiohttp.ClientSession(
+        connector=aiohttp.TCPConnector(ssl=False),
+        headers={
+            "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+        }
+    ) as session:
+        async with session.get(uri, proxy="http://127.0.0.1:7890/") as response:
+            with open(save_path, 'wb') as f:
+                while True:
+                    chunk = await response.content.read(1024)
+                    if not chunk:
+                        break
+                    f.write(chunk)

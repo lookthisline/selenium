@@ -1,14 +1,20 @@
-from db.session import sqlite_session
-from db.sqlite.picture import fine_record, save_data
-from driver.chrome import chrome_driver
-from loguru import logger
-from spider.wn import get_element_by_xpath, url, next_page
-from sqlalchemy.orm import Session
-from utils.document import save_media
+import asyncio
 import hashlib
 import os
 import re
 import time
+
+from loguru import logger
+from sqlalchemy.orm import Session
+
+from db.session import sqlite_session
+from db.sqlite.picture import fine_record, save_data
+from driver.chrome import chrome_driver
+from spider.wn import get_element_by_xpath, next_page, url
+from utils.document import save_media, save_media_of_async
+
+# 保存到当前目录的images文件夹下
+SAVE_DIR = os.path.join(os.getcwd(), 'images\\')
 
 
 def save_page_data(session: Session, res: list = []):
@@ -20,7 +26,7 @@ def save_page_data(session: Session, res: list = []):
         save_data(session, item)
 
 
-def save_pic(res: list = []):
+async def save_pic(res: list = []):
     for item in res:
         # 获取文件后缀
         suffix = item['pic_uri'].split(".")[-1]
@@ -40,19 +46,17 @@ def save_pic(res: list = []):
             file_name_2 = hashlib.md5(
                 str(time.time()).encode('utf-8')).hexdigest()
         try:
-            save_media(item['pic_uri'], SAVE_DIR + file_name)  # 保存到正常名称
+            await save_media_of_async(
+                item['pic_uri'], SAVE_DIR + file_name)  # 保存到正常名称
         except OSError as e:
             logger.error(e)
-            save_media(item["pic_uri"], SAVE_DIR +
-                       file_name_2 + "." + suffix)  # 保存到备选名称
+            await save_media_of_async(item["pic_uri"], SAVE_DIR +
+                                      file_name_2 + "." + suffix)  # 保存到备选名称
         except Exception as e:
             logger.exception(e)
 
 
-# 保存到当前目录的images文件夹下
-SAVE_DIR = os.path.join(os.getcwd(), 'images\\')
-
-if __name__ == '__main__':
+def wn():
     try:
         driver = chrome_driver()
         driver.get(url)  # home page
@@ -64,7 +68,7 @@ if __name__ == '__main__':
         res = [i for i in get_element_by_xpath(driver) if i]
         session: Session = next(sqlite_session())
         save_page_data(session, res)  # save main page data
-        save_pic(res)  # save pic
+        asyncio.run(save_pic(res))  # save pic
 
         max_read_page = 10
         current_page = 0
@@ -77,7 +81,7 @@ if __name__ == '__main__':
             logger.debug(next_driver.current_url)
             res = [i for i in get_element_by_xpath(next_driver) if i]
             save_page_data(session, res)
-            save_pic(res)
+            asyncio.run(save_pic(res))
             current_driver = next_driver
             current_page += 1
 
@@ -85,3 +89,11 @@ if __name__ == '__main__':
         driver.quit()
     except Exception as e:
         logger.exception(e)
+
+
+def test():
+    pass
+
+
+if __name__ == '__main__':
+    wn()

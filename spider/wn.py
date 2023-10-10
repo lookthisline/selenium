@@ -7,7 +7,7 @@ __all__ = (
     "next_page",
 )
 
-url = ""
+url = "https://www.wnacg.com/albums.html"
 pc_page_xpath = "/html/body/div[@id='bodywrap']/div[@class='grid']/div[@class='gallary_wrap']/ul[@class='cc']/li"
 phone_page_xpath = "/html/body/div/ul[@class='col_2']/li"
 pc_next_page_xpath = "/html/body/div[@id='bodywrap']/div[@class='grid']/div[@class='bot_toolbar cc']/div[@class='f_left paginator']/span[@class='next']/a"
